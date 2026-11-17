@@ -1,6 +1,6 @@
 // Service worker: deja la página disponible sin señal y envía la cola en segundo plano
 // (en Android, cuando el navegador lo permite). Al cambiar archivos, subir la versión.
-const CACHE = 'fauna-via-v5';
+const CACHE = 'fauna-via-v6';
 const ARCHIVOS = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -19,7 +19,8 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
   e.respondWith((async () => {
     const guardada = await caches.match(e.request, { ignoreSearch: true });
-    const red = fetch(e.request).then((resp) => {
+    // no-cache: pregunta siempre a GitHub si hay versión nueva (sin esto, el celular puede quedarse 10 min con la vieja)
+    const red = fetch(e.request.url, { cache: 'no-cache' }).then((resp) => {
       if (resp.ok) { const copia = resp.clone(); caches.open(CACHE).then((c) => c.put(e.request, copia)); }
       return resp;
     });
