@@ -76,6 +76,8 @@
   details.instalar summary { font-weight: 600; cursor: pointer; }
   .pie { margin-top: 24px; color: var(--suave); font-size: 14px; text-align: center; }
   #procesando { position: fixed; inset: auto 16px 24px; max-width: 488px; margin: 0 auto; background: var(--texto); color: var(--fondo); text-align: center; padding: 14px; border-radius: 12px; font-weight: 600; }
+  #mapa { height: 340px; border-radius: 10px; margin-top: 8px; border: 1px solid var(--borde); }
+  #mapa-caja .fila button { margin-top: 10px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -138,6 +140,15 @@
       <p id="txt-ubicacion"></p>
       <p id="fuente-ubicacion" class="fuente"></p>
       <button id="btn-usar-gps" class="secundario" type="button" hidden>📍 Estoy en el sitio: usar mi ubicación</button>
+      <button id="btn-mapa" class="secundario" type="button">🗺️ Marcar el punto en el mapa</button>
+      <div id="mapa-caja" hidden>
+        <p class="ayuda">Toque el mapa donde estaba el animal. Puede acercar con dos dedos.</p>
+        <div id="mapa"></div>
+        <div class="fila">
+          <button id="btn-mapa-ok" class="principal" type="button" disabled>Usar este punto</button>
+          <button id="btn-mapa-cancelar" class="secundario" type="button">Cancelar</button>
+        </div>
+      </div>
     </div>
 
     <div class="dato">

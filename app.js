@@ -4,7 +4,7 @@
 // Pegar aquí la URL de la aplicación web de Apps Script (termina en /exec).
 // Vacía = modo prueba: los reportes no se envían a ningún lado, solo se muestran en la consola.
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwH-KTvGU7XAlqtEnPRzefYVpe03sKhqhf-BHGc6Ywh-Wj0Byd1h1sGKkV8XFune5vz/exec';
-const VERSION = '0.1';
+const VERSION = '0.2';
 const MAX_FOTOS = 4;
 const LADO_MAX = 2048;      // píxeles del lado mayor al reducir la foto
 const CALIDAD = 0.85;       // calidad JPEG
@@ -247,6 +247,58 @@ function pintarUbicacion() {
     fuente.textContent = '';
     btn.hidden = false;
   }
+  $('#btn-mapa').textContent = r.pos ? '🗺️ Corregir el punto en el mapa' : '🗺️ Marcar el punto en el mapa';
+}
+
+// ===== Mapa para marcar el punto a mano (necesita señal) =====
+const CENTRO_CORREDOR = [6.65, -74.79];
+let mapa = null, marcador = null, puntoMapa = null;
+function cargarLeaflet() {
+  if (window.L) return Promise.resolve();
+  return new Promise((ok, mal) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.append(css);
+    const js = document.createElement('script');
+    js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    js.onload = ok; js.onerror = mal;
+    document.head.append(js);
+  });
+}
+async function abrirMapa() {
+  const btn = $('#btn-mapa');
+  btn.disabled = true; btn.textContent = 'Abriendo el mapa…';
+  try { await cargarLeaflet(); } catch {
+    btn.disabled = false; pintarUbicacion();
+    alert('Sin señal no se puede abrir el mapa. Escriba una referencia del sitio.');
+    return;
+  }
+  btn.disabled = false; btn.hidden = true;
+  $('#mapa-caja').hidden = false;
+  const inicio = r.pos ? [r.pos.lat, r.pos.lon] : (ultimaPos ? [ultimaPos.lat, ultimaPos.lon] : CENTRO_CORREDOR);
+  if (!mapa) {
+    mapa = L.map('mapa');
+    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imágenes © Esri' });
+    const calles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+    calles.addTo(mapa); // el mapa de calles muestra la autopista y los pueblos; el satélite sirve de cerca
+    L.control.layers({ 'Mapa': calles, 'Satélite': sat }).addTo(mapa);
+    mapa.on('click', (e) => {
+      puntoMapa = e.latlng;
+      if (marcador) marcador.setLatLng(e.latlng); else marcador = L.marker(e.latlng).addTo(mapa);
+      $('#btn-mapa-ok').disabled = false;
+    });
+  }
+  mapa.setView(inicio, r.pos || ultimaPos ? 16 : 12);
+  setTimeout(() => mapa.invalidateSize(), 50);
+  if (r.pos) { puntoMapa = L.latLng(r.pos.lat, r.pos.lon); if (marcador) marcador.setLatLng(puntoMapa); else marcador = L.marker(puntoMapa).addTo(mapa); $('#btn-mapa-ok').disabled = false; }
+  else { puntoMapa = null; if (marcador) { marcador.remove(); marcador = null; } $('#btn-mapa-ok').disabled = true; }
+}
+function cerrarMapa() { $('#mapa-caja').hidden = true; $('#btn-mapa').hidden = false; pintarUbicacion(); }
+function usarPuntoMapa() {
+  if (!puntoMapa) return;
+  r.pos = { lat: puntoMapa.lat, lon: puntoMapa.lng, prec: null };
+  r.fuenteUbic = 'Marcado a mano en el mapa';
+  cerrarMapa();
 }
 
 // ===== Cola de envío (IndexedDB) =====
@@ -322,7 +374,9 @@ async function enviar() {
   const referencia = $('#referencia').value.trim();
   if (!estadoAnimal) return mostrarError('Diga si el animal estaba muerto, herido o vivo.');
   if (!$('#fecha').value) return mostrarError('Falta la fecha de la foto.');
-  if (!r.pos && !referencia) return mostrarError('No hay ubicación: escriba una referencia del sitio.');
+  if (!r.pos && !referencia && !confirm('El reporte no tiene ubicación ni referencia del sitio. Sin eso es difícil ubicarlo en la vía.\n\n¿Enviarlo así de todos modos?')) {
+    return mostrarError('Marque el punto en el mapa o escriba una referencia del sitio.');
+  }
   mostrarError('');
   const horaEditada = r.fuenteHora && ($('#fecha').dataset.editado === '1' || $('#hora').dataset.editado === '1');
   const x = {
@@ -368,6 +422,7 @@ function limpiar() {
   ['animal', 'referencia', 'nota', 'web', 'fecha', 'hora'].forEach((id) => { $('#' + id).value = ''; delete $('#' + id).dataset.editado; });
   document.querySelectorAll('input[name="estado"]').forEach((i) => { i.checked = false; });
   mostrarError('');
+  $('#mapa-caja').hidden = true; $('#btn-mapa').hidden = false;
 }
 
 // ===== Bienvenida =====
@@ -419,6 +474,9 @@ $('#btn-usar-gps').onclick = () => {
   e.target.dataset.editado = '1';
   if (!r.fuenteHora) $('#fuente-hora').textContent = 'Escrita a mano';
 }));
+$('#btn-mapa').onclick = abrirMapa;
+$('#btn-mapa-ok').onclick = usarPuntoMapa;
+$('#btn-mapa-cancelar').onclick = cerrarMapa;
 $('#btn-enviar').onclick = enviar;
 $('#btn-cancelar').onclick = () => { limpiar(); irAPrincipal(); };
 $('#btn-nuevo').onclick = irAPrincipal;
