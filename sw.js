@@ -1,6 +1,6 @@
 // Service worker: deja la página disponible sin señal y envía la cola en segundo plano
 // (en Android, cuando el navegador lo permite). Al cambiar archivos, subir la versión.
-const CACHE = 'fauna-via-v3';
+const CACHE = 'fauna-via-v4';
 const ARCHIVOS = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', (e) => {

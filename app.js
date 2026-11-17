@@ -4,7 +4,10 @@
 // Pegar aquí la URL de la aplicación web de Apps Script (termina en /exec).
 // Vacía = modo prueba: los reportes no se envían a ningún lado, solo se muestran en la consola.
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwH-KTvGU7XAlqtEnPRzefYVpe03sKhqhf-BHGc6Ywh-Wj0Byd1h1sGKkV8XFune5vz/exec';
-const VERSION = '0.2';
+const VERSION = '0.3';
+// Número de WhatsApp que recibe las fotos originales como documento: indicativo + número, sin "+" ni espacios
+// (por ejemplo 573001234567). Vacío = no se muestra el botón.
+const WHATSAPP = '';
 const MAX_FOTOS = 4;
 const LADO_MAX = 2048;      // píxeles del lado mayor al reducir la foto
 const CALIDAD = 0.85;       // calidad JPEG
@@ -243,7 +246,9 @@ function pintarUbicacion() {
     txt.textContent = gpsDenegado ? 'El celular no dio la ubicación. Escriba una referencia del sitio abajo.' : 'Buscando señal GPS…';
     fuente.textContent = '';
   } else {
-    txt.textContent = 'La foto no trae ubicación.';
+    txt.textContent = WHATSAPP
+      ? 'El celular no dejó pasar la ubicación de la foto. Al enviar el reporte podrá mandar la foto original por WhatsApp, y de ahí la sacamos.'
+      : 'La foto no trae ubicación.';
     fuente.textContent = '';
     btn.hidden = false;
   }
@@ -404,7 +409,16 @@ async function enviar() {
   await cola.poner(x);
   // Pedir envío en segundo plano (Android). getRegistration no se queda esperando si no hay service worker.
   try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg?.active) await reg.sync?.register('enviar-reportes'); } catch { /* sin sincronización en segundo plano */ }
+  // Foto de la galería sin ubicación en los metadatos: ofrecer mandar el original por WhatsApp.
+  const pedirOriginal = WHATSAPP && r.modo === 'galeria' && r.exif.lat === null;
+  const codigo = x.id.slice(0, 8).toUpperCase();
   limpiar();
+  $('#caja-whatsapp').hidden = !pedirOriginal;
+  if (pedirOriginal) {
+    $('#codigo-reporte').textContent = codigo;
+    const texto = `Hola. Envío como documento la foto original del reporte de fauna en la vía, código ${codigo} (${x.fecha}${x.hora ? ' ' + x.hora : ''}, ${x.estado.toLowerCase()}).`;
+    $('#btn-whatsapp').href = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(texto)}`;
+  }
   $('#titulo-listo').textContent = 'Reporte guardado';
   $('#txt-listo').textContent = 'Enviando…';
   ver('listo');

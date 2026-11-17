@@ -57,6 +57,9 @@
   .fila { display: flex; gap: 8px; }
   .fila input { margin-top: 0; min-width: 0; flex: 1; }
   a { color: var(--marca); font-weight: 600; }
+  a.principal { color: var(--marca-texto); text-align: center; text-decoration: none; }
+  #caja-whatsapp { text-align: left; }
+  #caja-whatsapp ol { padding-left: 20px; margin: 8px 0 0; }
   fieldset { border: 0; padding: 0; margin: 16px 0 0; }
   legend { font-weight: 600; padding: 0; }
   .chips { display: flex; gap: 8px; margin-top: 8px; }
@@ -182,6 +185,15 @@
     <div class="ok">✓</div>
     <h2 id="titulo-listo">Reporte guardado</h2>
     <p id="txt-listo"></p>
+    <div id="caja-whatsapp" class="dato" hidden>
+      <h3>Falta la ubicación</h3>
+      <p>El celular no dejó pasar la ubicación de la foto. Mándenos la foto original por WhatsApp y de ahí la sacamos:</p>
+      <ol>
+        <li>Toque el botón verde: se abre WhatsApp con un mensaje listo (código <b id="codigo-reporte"></b>).</li>
+        <li>Antes de enviar, toque 📎 → <b>Documento</b> y escoja la misma foto. Como documento llega completa.</li>
+      </ol>
+      <a id="btn-whatsapp" class="principal" href="#" target="_blank" rel="noopener">Mandar el original por WhatsApp</a>
+    </div>
     <button id="btn-nuevo" class="principal" type="button">Hacer otro reporte</button>
   </section>
 </main>
