@@ -4,7 +4,7 @@
 // Pegar aquí la URL de la aplicación web de Apps Script (termina en /exec).
 // Vacía = modo prueba: los reportes no se envían a ningún lado, solo se muestran en la consola.
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwH-KTvGU7XAlqtEnPRzefYVpe03sKhqhf-BHGc6Ywh-Wj0Byd1h1sGKkV8XFune5vz/exec';
-const VERSION = '0.3';
+const VERSION = '0.4';
 // Número de WhatsApp que recibe las fotos originales como documento: indicativo + número, sin "+" ni espacios
 // (por ejemplo 573001234567). Vacío = no se muestra el botón.
 const WHATSAPP = '';
@@ -117,8 +117,10 @@ function leerTiff(v, t) {
   const rac = (x, i) => { const d = u32(x.vo + i * 8 + 4); return d ? u32(x.vo + i * 8) / d : NaN; };
   const grados = (x) => (x && x.vo + 24 <= v.byteLength ? rac(x, 0) + rac(x, 1) / 60 + rac(x, 2) / 3600 : NaN);
 
-  const res = { fecha: null, hora: null, lat: null, lon: null };
+  const res = { fecha: null, hora: null, lat: null, lon: null, marca: null, modelo: null, bloqueGPS: false };
   const i0 = ifd(u32(t + 4));
+  res.marca = ascii(i0[0x010F]); res.modelo = ascii(i0[0x0110]);
+  res.bloqueGPS = !!i0[0x8825];
   let dt = null;
   if (i0[0x8769]) { const ex = ifd(u32(i0[0x8769].vo)); dt = ascii(ex[0x9003]) || ascii(ex[0x9004]); }
   dt = dt || ascii(i0[0x0132]);
@@ -488,6 +490,39 @@ $('#btn-usar-gps').onclick = () => {
   e.target.dataset.editado = '1';
   if (!r.fuenteHora) $('#fuente-hora').textContent = 'Escrita a mano';
 }));
+// ===== Prueba de metadatos (solo con ?prueba en la dirección) =====
+async function probarFoto(input, via) {
+  const f = input.files[0];
+  input.value = '';
+  if (!f) return;
+  const ex = await leerExif(f);
+  const filas = [
+    ['Cómo se escogió', via],
+    ['Archivo', `${f.name} · ${f.type || 'sin tipo'} · ${Math.round(f.size / 1024)} KB`],
+    ['¿Trae metadatos EXIF?', ex ? 'Sí' : 'No'],
+    ['Cámara', ex && (ex.marca || ex.modelo) ? `${ex.marca || ''} ${ex.modelo || ''}`.trim() : '—'],
+    ['Fecha y hora', ex && ex.fecha ? `${ex.fecha} ${ex.hora}` : 'No trae'],
+    ['Ubicación', ex && ex.lat !== null ? `${ex.lat.toFixed(6)}, ${ex.lon.toFixed(6)}` : (ex && ex.bloqueGPS ? 'Trae el bloque GPS, pero vacío (el celular la borró)' : 'No trae')],
+  ];
+  const caja = document.createElement('div');
+  caja.className = 'dato';
+  filas.forEach(([k, v]) => {
+    const p = document.createElement('p');
+    const b = document.createElement('b'); b.textContent = k + ': ';
+    p.append(b, document.createTextNode(v));
+    caja.append(p);
+  });
+  $('#resultado-prueba').prepend(caja);
+}
+const modoPrueba = new URLSearchParams(location.search).has('prueba');
+$('#btn-ir-prueba').hidden = !modoPrueba;
+$('#btn-ir-prueba').onclick = () => ver('prueba');
+$('#btn-salir-prueba').onclick = irAPrincipal;
+$('#btn-prueba-galeria').onclick = () => $('#in-prueba-galeria').click();
+$('#btn-prueba-archivos').onclick = () => $('#in-prueba-archivos').click();
+$('#in-prueba-galeria').onchange = (e) => probarFoto(e.target, 'Galería (selector de fotos)');
+$('#in-prueba-archivos').onchange = (e) => probarFoto(e.target, 'Archivos (explorador)');
+
 $('#btn-mapa').onclick = abrirMapa;
 $('#btn-mapa-ok').onclick = usarPuntoMapa;
 $('#btn-mapa-cancelar').onclick = cerrarMapa;
